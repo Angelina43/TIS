@@ -11,8 +11,8 @@ Route::post('authorization', [AuthController::class, 'authorization']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('files')->group(function () {
         Route::post('', [FileController::class, 'upload']);
-        Route::get('/disk', [FileController::class, 'show_file']);
-        Route::get('shared', [AuthorController::class, 'show_co_author']);
+        Route::get('/disk', [FileController::class, 'showFile']);
+        Route::get('shared', [AuthorController::class, 'showCoAuthor']);
     });
 
     Route::prefix('files/{id}')->group(function () {
