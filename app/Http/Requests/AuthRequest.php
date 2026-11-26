@@ -26,11 +26,4 @@ class AuthRequest extends FormRequest
             'password.required' => 'Password is required',
         ];
     }
-
-    protected function failedValidation(Validator $validator)
-    {
-        throw new HttpResponseException(
-            response()->json($validator->errors(), 400)
-        );
-    }
 }

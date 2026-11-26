@@ -7,17 +7,17 @@ use App\Models\User;
 
 class AuthorService
 {
-    public function access(string $fileId, string $email, User $author)
+    public function access(string $fileId, string $email, User $author): array
     {
-        $file = File::where('file_id', $fileId)->first();
-
-        if (!$file || $file->author !== $author->id) {
-            return null;
-        }
+        $file = $this->findOwnedFile($fileId, $author);
 
         $user = User::where('email', $email)->first();
 
-        if ($user && $user->id !== $author->id) {
+        if (!$user) {
+            abort(404);
+        }
+
+        if ($user->id !== $author->id) {
             $currentCoAuthors = $file->co_author ?? [];
 
             $userData = [
@@ -33,30 +33,44 @@ class AuthorService
             }
         }
 
-        return $file;
+        return $this->getAccessList($file);
     }
 
-    public function remove(string $fileId, string $email, User $author)
+    public function remove(string $fileId, string $email, User $author): array
     {
-        $file = File::where('file_id', $fileId)->first();
+        $file = $this->findOwnedFile($fileId, $author);
 
-        if (!$file || $file->author !== $author->id) {
-            return null;
+        if ($email === $author->email) {
+            abort(403);
         }
 
-        $file->co_author = collect($file->co_author ?? [])
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            abort(404);
+        }
+
+        $coAuthors = collect($file->co_author ?? []);
+
+        if (!$coAuthors->contains('email', $email)) {
+            abort(404);
+        }
+
+        $file->co_author = $coAuthors
             ->reject(fn($coAuthor) => ($coAuthor['email'] ?? '') === $email)
             ->values()
             ->toArray();
 
         $file->save();
 
-        return $file;
+        return $this->getAccessList($file);
     }
 
     public function showCoAuthor(User $user): array
     {
-        $files = File::whereJsonContains('co_author', [['email' => $user->email],])->get();
+        $files = File::where('author', '!=', $user->id)
+            ->whereJsonContains('co_author', [['email' => $user->email]])
+            ->get();
 
         return $files->map(function ($file) {
             return [
@@ -91,5 +105,16 @@ class AuthorService
         }
 
         return $result;
+    }
+
+    private function findOwnedFile(string $fileId, User $author): File
+    {
+        $file = File::where('file_id', $fileId)->firstOrFail();
+
+        if ($file->author !== $author->id) {
+            abort(403);
+        }
+
+        return $file;
     }
 }

@@ -27,11 +27,4 @@ class FileUploadRequest extends FormRequest
             'files.max' => 'file is too large, maximum size is 2MB',
         ];
     }
-
-    protected function failedValidation(Validator $validator)
-    {
-        throw new HttpResponseException(
-            response()->json($validator->errors(), 400)
-        );
-    }
 }

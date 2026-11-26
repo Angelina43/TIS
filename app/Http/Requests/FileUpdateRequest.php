@@ -29,11 +29,4 @@ class FileUpdateRequest extends FormRequest
             'name.unique' => 'name must be unique',
         ];
     }
-
-    protected function failedValidation(Validator $validator)
-    {
-        throw new HttpResponseException(
-            response()->json($validator->errors(), 400)
-        );
-    }
 }

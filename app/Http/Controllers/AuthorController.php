@@ -13,31 +13,24 @@ class AuthorController extends Controller
     {}
     public function access(AccessRequest $request, $id)
     {
-        $file = $this->authorService->access($id, $request->validated('email'), $request->user());
+        $result = $this->authorService->access(
+            $id,
+            $request->validated('email'),
+            $request->user()
+        );
 
-        if (!$file) {
-            return response()->json([
-                'success' => false,
-                'code' => 404,
-                'message' => 'File not found',
-            ], 404);
-        }
-
-        return $this->accessListResponse($file);
+        return response()->json($result);
     }
+
     public function remove(AccessRequest $request, $id)
     {
-        $file = $this->authorService->remove($id, $request->validated('email'), $request->user());
+        $result = $this->authorService->remove(
+            $id,
+            $request->validated('email'),
+            $request->user()
+        );
 
-        if (!$file) {
-            return response()->json([
-                'success' => false,
-                'code' => 404,
-                'message' => 'File not found',
-            ], 404);
-        }
-
-        return $this->accessListResponse($file);
+        return response()->json($result);
     }
     public function showCoAuthor(Request $request)
     {

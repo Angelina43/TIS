@@ -8,9 +8,10 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+
 class FileService
 {
-    public function uploadFiles(array $files, User $author)
+    public function uploadFiles(array $files, User $author): array
     {
         $response = [];
 
@@ -31,9 +32,10 @@ class FileService
                 continue;
             }
 
-            $fileName = $this->generateUniqueFileName($uploadedFile, 'files');
-            $path = $uploadedFile->storeAs('files', $fileName, 'local');
+            $fileName = $this->generateUniqueFileName($uploadedFile, $author);
             $fileId = Str::lower(Str::random(10));
+            $ext = $uploadedFile->getClientOriginalExtension();
+            $path = $uploadedFile->storeAs('uploads', "{$fileId}.{$ext}", 'local');
 
             $fileRecord = File::create([
                 'name' => $fileName,
@@ -55,54 +57,38 @@ class FileService
         return $response;
     }
 
-    public function updateFile(string $id, string $newName, User $author)
+    public function updateFile(string $fileId, string $newName, User $author): void
     {
-        $file = File::find($id);
-
-        if (!$file || $file->author !== $author->id) {
-            return false;
-        }
+        $file = $this->findOwnedFile($fileId, $author);
 
         $file->name = $newName;
         $file->save();
-
-        return true;
     }
 
-    public function deleteFile(string $id, User $author)
+    public function deleteFile(string $fileId, User $author): void
     {
-        $file = File::find($id);
-
-        if (!$file || $file->author !== $author->id) {
-            return false;
-        }
+        $file = $this->findOwnedFile($fileId, $author);
 
         if ($file->url && Storage::disk('local')->exists($file->url)) {
             Storage::disk('local')->delete($file->url);
         }
 
         $file->delete();
-
-        return true;
     }
 
-    public function DownloadFile(string $fileId, User $user)
+    public function downloadFile(string $fileId, User $user): File
     {
-        $file = File::where('file_id', $fileId)->first();
-
-        if (!$file) {
-            return null;
-        }
+        $file = File::where('file_id', $fileId)->firstOrFail();
 
         $isAuthor = $file->author === $user->id;
         $isCoAuthor = collect($file->co_author ?? [])->contains('email', $user->email);
 
         if (!$isAuthor && !$isCoAuthor) {
-            return null;
+            abort(403);
         }
 
         if (!$file->url || !Storage::disk('local')->exists($file->url)) {
-            return null;
+            abort(404);
         }
 
         return $file;
@@ -139,14 +125,25 @@ class FileService
         })->all();
     }
 
-    private function generateUniqueFileName(UploadedFile $file, string $folder): string
+    private function findOwnedFile(string $fileId, User $author): File
+    {
+        $file = File::where('file_id', $fileId)->firstOrFail();
+
+        if ($file->author !== $author->id) {
+            abort(403);
+        }
+
+        return $file;
+    }
+
+    private function generateUniqueFileName(UploadedFile $file, User $author): string
     {
         $name = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
         $ext = $file->getClientOriginalExtension();
         $fileName = "{$name}.{$ext}";
         $counter = 1;
 
-        while (Storage::disk('local')->exists("{$folder}/{$fileName}")) {
+        while (File::where('author', $author->id)->where('name', $fileName)->exists()) {
             $fileName = "{$name} ({$counter}).{$ext}";
             $counter++;
         }

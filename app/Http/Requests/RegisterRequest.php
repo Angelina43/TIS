@@ -38,11 +38,4 @@ class RegisterRequest extends FormRequest
             'last_name.regex' => 'Invalid last name',
         ];
     }
-
-    protected function failedValidation(Validator $validator)
-    {
-        throw new HttpResponseException(
-            response()->json($validator->errors(), 400)
-        );
-    }
 }
